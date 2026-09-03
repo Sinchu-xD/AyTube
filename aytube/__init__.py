@@ -24,7 +24,11 @@ from .stream import find_best_stream, verify_stream, StreamResult, _parse_mime_t
 
 from .batch import batch_download
 from .age import bypass_age_check
-from .potoken import generate_po_token
+try:
+    from .potoken import generate_po_token
+except ImportError:
+    def generate_po_token(*args, **kwargs):
+        return ""
 from .search import search
 from .thumbnail import get_thumbnails, download_thumbnail
 from .chapters import get_chapters

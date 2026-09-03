@@ -28,7 +28,7 @@ from typing import Any
 
 _CHALLENGE_URL = (
     "https://jnn-pa.googleapis.com/jnn/v1/player/oppopt"
-    "?key=AIzaSyB4ZVsEw6oWyMyBmsvFKP7h7NKFksDEraQ"
+    "?key={API_KEY}"
 )
 
 

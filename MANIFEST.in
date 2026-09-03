@@ -11,5 +11,6 @@ exclude test_full.py
 exclude test_unit.py
 exclude aytube/_debug*.py
 exclude aytube/__pycache__/*
+exclude aytube/potoken.py
 recursive-exclude aytube/__pycache__ *
 recursive-exclude tests *

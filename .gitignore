@@ -32,3 +32,4 @@ debug_*.py
 # OS
 .DS_Store
 Thumbs.db
+aytube/potoken.py

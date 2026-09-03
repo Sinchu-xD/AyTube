@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "aytube"
@@ -43,14 +43,17 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/Sinchu-xD/AyTube"
-Bug Reports = "https://github.com/Sinchu-xD/AyTube/issues"
+"Bug Reports" = "https://github.com/Sinchu-xD/AyTube/issues"
 Source = "https://github.com/Sinchu-xD/AyTube"
 
 [project.scripts]
 aytube = "aytube.__main__:main"
 
 [tool.setuptools.packages.find]
-exclude = ["tests", "tests.*", "examples"]
+exclude = ["tests", "tests.*", "examples", "aytube._debug*"]
+
+[tool.setuptools]
+py-modules = []
 
 [tool.ruff]
 line-length = 100
