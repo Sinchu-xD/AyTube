@@ -1,0 +1,3 @@
+cookies_file
+*.egg-info
+debug_*.py
