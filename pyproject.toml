@@ -11,7 +11,14 @@ license = {text = "MIT"}
 authors = [
     {name = "ABHISHEK THAKUR", email = "abhiyanshicreation@gmail.com"},
 ]
-keywords = ["youtube", "stream", "extractor", "download", "video", "audio"]
+keywords = [
+    "youtube", "downloader", "youtube downloader", "youtube video downloader",
+    "youtube extractor", "youtube stream", "youtube-dl", "yt-dlp",
+    "yt-dlp alternative", "pytube alternative", "youtube audio",
+    "video downloader", "audio extractor", "stream extractor",
+    "youtube download", "youtube video", "youtube audio downloader",
+    "youtube playlist", "youtube shorts", "youtube embed",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

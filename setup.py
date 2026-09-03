@@ -36,7 +36,7 @@ setup(
         "Topic :: Multimedia :: Video",
         "Topic :: Internet :: WWW/HTTP",
     ],
-    keywords="youtube stream extractor download video audio",
+    keywords="youtube downloader, youtube video downloader, youtube extractor, youtube stream, youtube-dl alternative, yt-dlp alternative, pytube alternative, youtube audio, video downloader, audio extractor, stream extractor, youtube download, youtube video, youtube audio downloader, youtube playlist, youtube shorts, youtube embed, youtu.be",
     project_urls={
         "Bug Reports": "https://github.com/Sinchu-xD/AyTube/issues",
         "Source": "https://github.com/Sinchu-xD/AyTube",
