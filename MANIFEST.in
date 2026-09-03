@@ -1,0 +1,15 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include examples/*.py
+
+# Exclude
+exclude cookies_file
+exclude debug_*.py
+exclude test_aytube.sh
+exclude test_full.py
+exclude test_unit.py
+exclude aytube/_debug*.py
+exclude aytube/__pycache__/*
+recursive-exclude aytube/__pycache__ *
+recursive-exclude tests *

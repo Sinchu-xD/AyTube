@@ -1,20 +1,19 @@
 # aytube
 
-Extract direct YouTube stream URLs from any YouTube URL — **without yt-dlp, pytube, or any external tool**.
+**Extract direct YouTube stream URLs — without yt-dlp, pytube, or any external tool.**
 
 Fully custom implementation from scratch. Supports video/audio quality selection, cookies, proxies, and automatic rate-limit handling.
 
 ## Features
 
-- 🎬 **Any URL format** — watch, shorts, embed, youtu.be
-- 🎥 **Video quality** — 4K, 1080p, 720p, 480p, 360p, best, worst
-- 🎵 **Audio only** — high/medium/low quality (opus, mp4a)
-- 🔐 **Auto cookie retry** — automatically retries with cookies_file on HTTP 429 rate limits
-- 🍪 **Cookie support** — Netscape-format cookies_file for age-restricted videos
-- 🌐 **Proxy support** — HTTP/HTTPS proxies
-- ✅ **Stream verification** — confirms URLs have real bytes to play
-- 🔑 **Modern cipher** — AES-128-CTR signature decryption via Node.js worker
-- 📦 **Zero heavy deps** — only stdlib + Node.js (for cipher only)
+- Any URL format — watch, shorts, embed, youtu.be
+- Video quality — 4K, 1080p, 720p, 480p, 360p, best, worst
+- Audio only — high/medium/low quality (opus, mp4a)
+- Cookie support — Netscape-format cookies_file for age-restricted videos
+- Proxy support — HTTP/HTTPS proxies
+- Stream verification — confirms URLs have real bytes to play
+- Modern cipher — AES-128-CTR signature decryption via Node.js worker
+- Zero heavy dependencies — only stdlib + Node.js (for cipher only)
 
 ## Installation
 
@@ -37,7 +36,65 @@ print(result.url)        # Direct playable stream URL
 print(result.quality)    # e.g. "2160p"
 print(result.size)       # File size in bytes
 print(result.title)      # Video title
+
+# With cookies (for age-restricted / rate-limited videos)
+result = get_stream_url(url, cookies_file="/path/to/cookies_file")
+
+# With proxy
+result = get_stream_url(url, proxy="http://127.0.0.1:8080")
+
+# Quality selection
+result = get_stream_url(url, quality="1080p")
+
+# Audio only
+result = get_stream_url(url, audio_only=True, quality="high")
 ```
+
+## CLI Usage
+
+```bash
+# Install the package, then:
+aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+aytube "https://youtube.com/shorts/abc123" --quality 720p --audio
+aytube "https://youtu.be/dQw4w9WgXcQ" --cookies cookies_file
+aytube "lofi hip hop" --search --max-results 5
+aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --list
+aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --info --json
+aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --subs
+aytube "dQw4w9WgXcQ" --thumb --output thumb.jpg
+aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --chapters
+```
+
+### CLI Options
+
+| Option | Description |
+|--------|-------------|
+| `-q, --quality QUALITY` | Quality: best/1080p/720p/480p/360p/audio |
+| `-a, --audio` | Audio only |
+| `-o, --output OUTPUT` | Output file path |
+| `-c, --cookies COOKIES` | Cookies file (Netscape format) |
+| `-p, --proxy PROXY` | HTTP/HTTPS proxy URL |
+| `-f, --format FORMAT` | Format itag (137, 251, etc.) |
+| `-j, --json` | JSON output |
+| `-v, --verbose` | Verbose output |
+| `-n, --concurrent N` | Concurrent downloads |
+| `-N, --max-results N` | Max search results |
+
+## Supported Commands
+
+| Command | Description |
+|---------|-------------|
+| `aytube <url>` | Download video (default) |
+| `aytube get <url>` | Get stream URL |
+| `aytube list <url>` | List all available formats |
+| `aytube download <url>` | Download video |
+| `aytube info <url>` | Show video metadata |
+| `aytube search <query>` | Search YouTube |
+| `aytube subs <url>` | List available subtitles |
+| `aytube thumb <id>` | Download thumbnail |
+| `aytube chapters <url>` | Show video chapters |
+| `aytube setup` | Setup wizard (cookies, config) |
+| `aytube show` | Show current configuration |
 
 ## API Reference
 
@@ -90,6 +147,42 @@ extract_video_id("https://www.youtube.com/shorts/dQw4w9WgXcQ")    # "dQw4w9WgXcQ
 extract_video_id("https://www.youtube.com/embed/dQw4w9WgXcQ")     # "dQw4w9WgXcQ"
 ```
 
+### `list_formats(url, cookies_file=None, proxy=None)`
+
+List all available stream formats for a video.
+
+```python
+from aytube import list_formats
+
+formats = list_formats("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+for f in formats:
+    print(f"itag={f['itag']} {f['quality']} {f['container']} {f['video_codec'] or f['audio_codec']}")
+```
+
+### `get_metadata(url, cookies_file=None, proxy=None)`
+
+Get video metadata without extracting stream URL.
+
+```python
+from aytube import get_metadata
+
+meta = get_metadata("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+print(meta["title"])
+print(meta["duration"])
+print(meta["view_count"])
+```
+
+### `download(url, quality="best", audio_only=False, output=None, cookies_file=None, proxy=None, timeout=30)`
+
+Download a video to a file.
+
+```python
+from aytube import download
+
+path = download("https://www.youtube.com/watch?v=dQw4w9WgXcQ", quality="1080p")
+print(f"Saved to {path}")
+```
+
 ## Examples
 
 ### Video Quality Selection
@@ -106,11 +199,6 @@ print(f"1080p: {r.url[:80]}...  size={r.size:,}")
 # Best available
 r = get_stream_url(url)
 print(f"best: {r.quality}  size={r.size:,}")
-
-# Multiple quality levels
-for q in ["1080p", "720p", "480p", "360p"]:
-    r = get_stream_url(url, quality=q)
-    print(f"{q}: {r.quality} itag={r.itag} {r.size:,} bytes")
 ```
 
 ### Audio Only
@@ -120,14 +208,9 @@ from aytube import get_stream_url
 
 r = get_stream_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ", audio_only=True)
 print(f"{r.quality} audio: {r.container} {r.audio_codec}  {r.size:,} bytes")
-
-# Audio quality levels
-for q in ["high", "medium", "low"]:
-    r = get_stream_url(url, audio_only=True, quality=q)
-    print(f"audio {q}: itag={r.itag} {r.container} {r.audio_codec}")
 ```
 
-### With Cookies (Age-Restricted / Rate-Limited Videos)
+### With Cookies
 
 ```python
 from aytube import get_stream_url
@@ -179,13 +262,22 @@ for url in urls:
     print(f"{r.quality} {r.size:,} bytes  {r.title[:40]}")
 ```
 
-### CLI Usage
+### Batch Processing
 
-```bash
-# Install the package, then:
-aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-aytube "https://youtube.com/shorts/abc123" --quality 720p --audio
-aytube "https://youtu.be/dQw4w9WgXcQ" --cookies cookies_file
+```python
+from aytube import get_stream_url
+
+urls = [
+    "https://www.youtube.com/watch?v=VIDEO_ID_1",
+    "https://www.youtube.com/watch?v=VIDEO_ID_2",
+]
+
+for url in urls:
+    try:
+        r = get_stream_url(url, quality="720p")
+        print(f"{r.title[:40]}: {r.size:,} bytes")
+    except Exception as e:
+        print(f"Failed: {e}")
 ```
 
 ## How It Works
@@ -194,16 +286,11 @@ aytube "https://youtu.be/dQw4w9WgXcQ" --cookies cookies_file
 2. **Page Fetch** — Downloads the watch page HTML with cookie/proxy support. Auto-retries with cookies on HTTP 429/403/503
 3. **Player Response** — Parses `ytInitialPlayerResponse` JSON from the HTML
 4. **Cipher Detection** — Checks if formats have encrypted `signatureCipher` fields
-5. **Key Extraction** — Tries multiple strategies:
-   - Extract `clientKey` from HTML page config
-   - Fetch `onesie_hot_config` from initplayback endpoint
-   - Evaluate player JS in Node.js sandbox, intercept AES key
-   - Legacy numeric/base64 key search in JS source
+5. **Key Extraction** — Tries multiple strategies to extract the AES cipher key
 6. **Signature Decryption** — AES-128-CTR with zero counter (symmetric encrypt=decrypt)
-7. **URL Construction** — Builds adaptive format URLs by replacing itag in the base URL + updating sparams
+7. **URL Construction** — Builds adaptive format URLs with correct itag and signature parameters
 8. **Quality Selection** — Picks the best format matching your quality preference, preferring mp4 container and known sizes
-9. **n-Parameter** — Transforms n-parameter if present (modern YouTube obfuscation)
-10. **Verification** — Uses `contentLength` from YouTube (most reliable), falls back to HTTP Range HEAD
+9. **Verification** — Uses `contentLength` from YouTube (most reliable), falls back to HTTP Range HEAD
 
 ## Rate Limits
 
@@ -245,19 +332,6 @@ result = get_stream_url(url, cookies_file="cookies_file")
 | 251 | audio | webm | opus | audio-only |
 | 250 | audio | webm | opus | audio-only |
 | 249 | audio | webm | opus | audio-only |
-
-## Architecture
-
-```
-aytube/
-├── __init__.py      # Main entry point, retry logic, URL building
-├── stream.py        # Quality selection, format filtering, stream verification
-├── cipher.py        # AES-128-CTR cipher, Node.js worker, key extraction
-├── fetcher.py       # HTTP fetching, cookie/proxy support, auto-retry
-├── player.py        # ytInitialPlayerResponse JSON extraction
-├── url.py           # YouTube URL parsing (all formats)
-└── __main__.py      # CLI interface
-```
 
 ## License
 
