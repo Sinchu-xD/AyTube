@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "aytube"
+version = "1.0.0"
+description = "Extract direct YouTube stream URLs from any YouTube URL format"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "ABHISHEK THAKUR", email = "abhiyanshicreation@gmail.com"},
+]
+keywords = ["youtube", "stream", "extractor", "download", "video", "audio"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Internet :: WWW/HTTP",
+]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "black",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/Sinchu-xD/AyTube"
+Bug Reports = "https://github.com/Sinchu-xD/AyTube/issues"
+Source = "https://github.com/Sinchu-xD/AyTube"
+
+[project.scripts]
+aytube = "aytube.__main__:main"
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*", "examples"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

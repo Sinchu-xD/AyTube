@@ -3,43 +3,11 @@ aytube - Extract direct YouTube stream URLs from ANY YouTube URL format.
 
 Primary method: HTML scraping (proven, no dependencies)
 Optional: innertube API with PoToken support
-
-Usage:
-    from aytube import get_stream_url
-
-    # Basic (HTML scraping - default, proven working)
-    r = get_stream_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-
-    # With cookies
-    r = get_stream_url(url, cookies_file="/path/to/cookies_file")
-
-    # With proxy
-    r = get_stream_url(url, proxy="http://127.0.0.1:8080")
-
-    # Quality selection
-    r = get_stream_url(url, quality="1080p")
-    r = get_stream_url(url, quality="720p")
-    r = get_stream_url(url, quality="best")
-
-    # Audio only
-    r = get_stream_url(url, audio_only=True, quality="high")
-
-    # Innertube API (requires PoToken, experimental)
-    r = get_stream_url(url, method="innertube")
-
-    # List all formats
-    formats = list_formats(url)
-    for f in formats:
-        print(f"itag={f['itag']} {f['quality']} {f['container']} {f['video_codec'] or f['audio_codec']}")
-
-    # Get metadata
-    meta = get_metadata(url)
-    print(meta["title"], meta["duration"], meta["view_count"])
-
-    # Download
-    path = download(url, quality="1080p")
-    print(f"Saved to {path}")
 """
+
+__version__ = "1.0.0"
+__author__ = "ABHISHEK THAKUR"
+__email__ = "abhiyanshicreation@gmail.com"
 
 import json
 import re
