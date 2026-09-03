@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="aytube",
-    version="1.0.0",
+    version="2.0.0",
     description="Extract direct YouTube stream URLs from any YouTube URL format",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
