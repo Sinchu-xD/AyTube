@@ -53,16 +53,47 @@ result = get_stream_url(url, audio_only=True, quality="high")
 ## CLI Usage
 
 ```bash
-# Install the package, then:
-aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-aytube "https://youtube.com/shorts/abc123" --quality 720p --audio
-aytube "https://youtu.be/dQw4w9WgXcQ" --cookies cookies_file
-aytube "lofi hip hop" --search --max-results 5
-aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --list
-aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --info --json
-aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --subs
-aytube "dQw4w9WgXcQ" --thumb --output thumb.jpg
-aytube "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --chapters
+# List formats
+aytube list "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+# Download
+aytube download "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -q 1080p
+
+# Get stream URL
+aytube get "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -q 720p
+
+# Audio only
+aytube download "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --audio
+
+# Search
+aytube search "lofi hip hop" --max-results 5
+
+# With cookies
+aytube download "URL" -c cookies_file -q 1080p
+
+# With proxy
+aytube download "URL" -p "http://127.0.0.1:8080"
+
+# Video info
+aytube info "URL" --json
+
+# List subtitles
+aytube subs "URL"
+
+# Download thumbnail
+aytube thumb "dQw4w9WgXcQ" -o thumb.jpg
+
+# Show chapters
+aytube chapters "URL"
+
+# Batch download
+aytube batch urls.txt -q 720p
+
+# Setup wizard
+aytube setup
+
+# Show config
+aytube show
 ```
 
 ### CLI Options
