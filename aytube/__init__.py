@@ -16,6 +16,10 @@ import time
 from urllib.parse import parse_qs, unquote
 from urllib.error import HTTPError
 
+# Simple per-video cache (5 min TTL) to avoid repeated YouTube requests
+_FORMAT_CACHE: dict[str, tuple] = {}
+_CACHE_TTL = 300
+
 from .url import extract_video_id
 from .fetcher import fetch_page, fetch_player_js, extract_player_js_url
 from .player import get_player_response
@@ -279,6 +283,11 @@ def _process_formats_html(all_formats, html, cookies, proxy, timeout):
             if fmt.get("url"):
                 resolved += 1
 
+    # Check if we got any URLs
+    has_urls = any(f.get("url") for f in all_formats)
+    if not has_urls:
+        raise RuntimeError("Could not resolve any stream URLs. YouTube may be rate-limiting.")
+
     return all_formats, n_func
 
 
@@ -341,6 +350,23 @@ def get_stream_url(
     video_id = extract_video_id(url)
     if not video_id:
         raise ValueError(f"Could not extract video ID from URL: {url}")
+
+    # ── Check cache (skip YouTube request if we have fresh data) ──
+    cache_key = f"{video_id}:{cookies_file or ''}:{proxy or ''}:{method}"
+    now = time.time()
+    cached = _FORMAT_CACHE.get(cache_key)
+    if cached:
+        cached_formats, cached_n_func, cached_cl, cached_ts, cached_title = cached
+        if now - cached_ts < _CACHE_TTL:
+            result = find_best_stream(
+                cached_formats, quality=quality, audio_only=audio_only,
+                is_live=False, itag_content_length=cached_cl,
+            )
+            result.title = cached_title
+            result.video_id = video_id
+            if result.itag and result.itag in cached_cl:
+                result.size = cached_cl[result.itag]
+            return result
 
     use_html = method in ("auto", "html")
     use_innertube = method in ("auto", "innertube")
@@ -440,13 +466,30 @@ def get_stream_url(
         if itag and cl:
             _itag_content_length[itag] = int(cl)
 
-    # ── Resolve URLs ──
-    if fetch_method == "innertube":
-        all_formats, n_func = _process_formats_innertube(all_formats)
-    else:
-        all_formats, n_func = _process_formats_html(
-            all_formats, html, cookies_file, proxy, timeout
-        )
+    # ── Resolve URLs (retry on rate-limit) ──
+    last_exc = None
+    for attempt in range(3):
+        try:
+            if fetch_method == "innertube":
+                all_formats, n_func = _process_formats_innertube(all_formats)
+            else:
+                all_formats, n_func = _process_formats_html(
+                    all_formats, html, cookies_file, proxy, timeout
+                )
+            break
+        except RuntimeError as exc:
+            last_exc = exc
+            if "rate-limit" in str(exc).lower() and attempt < 2:
+                time.sleep(3)
+                # Re-fetch page for retry
+                html = fetch_page(video_id, cookies_file=cookies_file,
+                                  proxy=proxy, timeout=timeout)
+                pr = get_player_response(html)
+                streaming_data = pr.get("streamingData", {})
+                all_formats = [dict(f) for f in streaming_data.get("formats", [])] + \
+                              [dict(f) for f in streaming_data.get("adaptiveFormats", [])]
+                continue
+            raise
 
     # ── Select best stream ──
     result = find_best_stream(
@@ -503,6 +546,10 @@ def get_stream_url(
         except Exception:
             pass
 
+    # ── Store in cache ──
+    if any(f.get("url") for f in all_formats):
+        _FORMAT_CACHE[cache_key] = (all_formats, n_func, _itag_content_length, time.time(), title)
+
     return result
 
 
@@ -545,91 +592,38 @@ def list_formats(
     if not video_id:
         raise ValueError(f"Could not extract video ID from URL: {url}")
 
-    # Fetch page
-    html = fetch_page(video_id, cookies_file=cookies_file, proxy=proxy, timeout=timeout)
+    # Fetch page (with retry on rate-limit)
+    html = None
+    for attempt in range(3):
+        try:
+            html = fetch_page(video_id, cookies_file=cookies_file, proxy=proxy, timeout=timeout)
+            break
+        except Exception as exc:
+            if _is_rate_limited(exc) and attempt < 2:
+                time.sleep(3)
+                continue
+            raise
     pr = get_player_response(html)
     sd = pr.get("streamingData", {})
 
     formats = sd.get("formats", []) + sd.get("adaptiveFormats", [])
 
-    # Resolve URLs
-    needs_cipher = any(f.get("signatureCipher") or f.get("s") for f in formats)
-    needs_n = any("&n=" in f.get("signatureCipher", "") or f.get("n") for f in formats)
+    # Resolve URLs using the proven _process_formats_html logic
+    all_formats = [dict(f) for f in formats]
     n_func = None
+    try:
+        all_formats, n_func = _process_formats_html(
+            all_formats, html, cookies_file, proxy, timeout
+        )
+    except Exception:
+        all_formats = [dict(f) for f in formats]
+        for fmt in all_formats:
+            if not fmt.get("url"):
+                fmt["url"] = _resolve_signature_format(fmt)
 
-    if needs_cipher or needs_n:
-        from .cipher import extract_key, extract_cipher_function, extract_n_function
-        from .fetcher import extract_player_js_url, fetch_player_js
-
-        html_key = extract_key(js=None, html=html)
-        try:
-            player_js_url = extract_player_js_url(html)
-        except RuntimeError:
-            player_js_url = None
-
-        js_code = None
-        if player_js_url:
-            try:
-                js_code = fetch_player_js(player_js_url, cookies_file=cookies_file,
-                                          proxy=proxy, timeout=timeout)
-            except Exception:
-                pass
-
-        if needs_cipher and js_code:
-            cipher_func = extract_cipher_function(js_code, aes_key=html_key or None)
-
-            _sig_base_url = _sig_deciphered = _sig_sp = ""
-            for fmt in formats:
-                sig_info = _decode_signature_cipher(fmt.pop("signatureCipher", "")) if fmt.get("signatureCipher") else {
-                    "s": fmt.pop("s", ""), "sp": fmt.get("sp", "signature"), "url": fmt.get("url", ""),
-                }
-                sig = sig_info.get("s", "")
-                if sig and cipher_func:
-                    try:
-                        deciphered = decipher(cipher_func, sig)
-                        sp = sig_info.get("sp", "signature")
-                        base_url = sig_info.get("url", "")
-                        if base_url:
-                            sep = "&" if "?" in base_url else "?"
-                            fmt["url"] = f"{base_url}{sep}{sp}={deciphered}"
-                        elif fmt.get("url"):
-                            sep = "&" if "?" in fmt["url"] else "?"
-                            fmt["url"] = f"{fmt['url']}{sep}{sp}={deciphered}"
-                        if not _sig_base_url and base_url:
-                            _sig_base_url = base_url
-                            _sig_deciphered = deciphered
-                            _sig_sp = sp
-                    except RuntimeError:
-                        pass
-                fmt.pop("sp", None)
-                fmt.pop("s", None)
-
-            if _sig_base_url and _sig_deciphered:
-                for fmt in formats:
-                    if not fmt.get("url"):
-                        fmt["url"] = _build_format_url(_sig_base_url, _sig_deciphered, _sig_sp, fmt)
-
-        if needs_n and js_code:
-            n_func = extract_n_function(js_code)
-
-    # Resolve remaining URLs
-    for fmt in formats:
-        if not fmt.get("url"):
-            fmt["url"] = _resolve_signature_format(fmt)
-
-    # Apply n-parameter
-    if n_func:
-        for fmt in formats:
-            cipher = fmt.get("signatureCipher", "")
-            if "&n=" in cipher:
-                n_match = _decode_signature_cipher(cipher)
-                n_value = n_match.get("n", "")
-                if n_value:
-                    fmt["url"] = _apply_n_parameter(fmt["url"], n_value, n_func)
-
-    # Build format list
+    # Build format list from resolved formats
     result = []
-    for fmt in formats:
+    for fmt in all_formats:
         mime, codecs = _parse_mime_type(fmt.get("mimeType", ""))
         itag = fmt.get("itag", 0)
         height = fmt.get("height", 0) or 0
@@ -847,7 +841,7 @@ def download(
         audio_only=audio_only,
         verify=False,
         timeout=timeout,
-        method="html",  # HTML gives working cipher URLs
+        method="auto",  # auto falls back to innertube if HTML URLs get 403
     )
 
     if not result.url:
