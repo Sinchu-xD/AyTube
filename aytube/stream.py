@@ -232,8 +232,22 @@ def find_best_stream(formats: list[dict], quality: str | None = None,
                           itag_content_length=itag_content_length)
     else:
         # User requested specific quality
-        best = _pick_best(valid, "video", quality,
-                          itag_content_length=itag_content_length)
+        # Check if quality is a numeric itag
+        try:
+            target_itag = int(quality)
+            # Filter by exact itag match
+            itag_matches = [f for f in valid if f.get("itag") == target_itag]
+            if itag_matches:
+                best = _pick_best(itag_matches, "video", "best",
+                                  itag_content_length=itag_content_length)
+            else:
+                # Fallback to quality-based selection
+                best = _pick_best(valid, "video", quality,
+                                  itag_content_length=itag_content_length)
+        except ValueError:
+            # Not a number, treat as quality string
+            best = _pick_best(valid, "video", quality,
+                              itag_content_length=itag_content_length)
     return _fmt_to_result(best, "video")
 
 

@@ -6,6 +6,7 @@ Uses YouTube's search suggestions API to find videos.
 from __future__ import annotations
 
 import json
+import re
 import urllib.request
 import urllib.parse
 import http.cookiejar
@@ -67,18 +68,40 @@ def search(
     html = resp.read().decode("utf-8", errors="replace")
     resp.close()
 
-    # Extract ytInitialData
-    import re
-    match = re.search(r'ytInitialData\s*=\s*({.+?});</script>', html, re.DOTALL)
-    if not match:
-        match = re.search(r'ytInitialData\s*=\s*({.+?});', html, re.DOTALL)
+    # Extract ytInitialData - YouTube search pages can have this anywhere
+    # The JSON can be very large, so we grab from ytInitialData to the end of script tag or next semicolon
+    data = None
 
-    if not match:
-        return []
+    # Strategy 1: Match everything after ytInitialData =
+    m = re.search(r'ytInitialData\s*=\s*({.+)\s*</script>', html, re.DOTALL)
+    if m:
+        json_str = m.group(1)
+        # The JSON might have a trailing semicolon before </script>
+        json_str = re.sub(r';\s*$', '', json_str)
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
 
-    try:
-        data = json.loads(match.group(1))
-    except json.JSONDecodeError:
+    # Strategy 2: Try simpler match (whole object in one script tag)
+    if not data:
+        m = re.search(r'ytInitialData\s*=\s*({.+?});\s*</script>', html, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(m.group(1))
+            except json.JSONDecodeError:
+                pass
+
+    if not data:
+        # Strategy 3: try extracting via regex capturing a closing brace before semicolon
+        m = re.search(r'ytInitialData\s*=\s*({[^{}]*(?:{[^{}]*}[^{}]*)*+);', html)
+        if m:
+            try:
+                data = json.loads(m.group(1))
+            except json.JSONDecodeError:
+                pass
+
+    if not data:
         return []
 
     # Navigate the structure to find video results
