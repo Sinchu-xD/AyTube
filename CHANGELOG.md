@@ -7,16 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2025-09-03
 
-### Fixed
-- Rate-limit retry: `_process_formats_html` now raises on empty URLs, triggering retry in `get_stream_url`
-- Cache pollution: `list_formats` no longer caches results (was storing bad data with empty adaptive URLs)
-- Download 403 errors: `download()` now uses `method="auto"` to fallback to innertube URLs
-- Unbound variable: `n_func` initialized before try block in `list_formats`
-
 ### Added
-- Per-video format cache (5 min TTL) in `get_stream_url` to avoid repeated YouTube requests
+- Per-video format cache (5 min TTL) in `get_stream_url`
 - Retry logic with backoff for YouTube rate-limit (429/403/503)
-- Innertube API fallback when HTML-built URLs fail
+- Innertube API fallback when HTML-built URLs fail with 403
+
+### Fixed
+- Rate-limit retry: `_process_formats_html` now raises on empty URLs
+- Cache pollution: `list_formats` no longer caches bad results
+- Download 403 errors: uses `method="auto"` for CDN fallback
+- Unbound variable: `n_func` initialized before try block
 
 ## [2.0.0] - 2025-01-15
 
