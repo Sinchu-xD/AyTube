@@ -21,10 +21,10 @@ Fully custom implementation from scratch. Supports video/audio quality selection
 ## Installation
 
 ```bash
-# From PyPI (once published)
+# From PyPI 
 pip install aytube
 
-# From source (current)
+# From source 
 pip install -e .
 ```
 
