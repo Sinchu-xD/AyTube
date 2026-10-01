@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="aytube",
-    version="2.1.2",
+    version="2.1.3",
     description="Ultra-fast YouTube Video & Audio Downloader / Stream Extractor in Python (pytube & yt-dlp alternative without 403 Forbidden, 4K/1080p, Cookie support & CLI)",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

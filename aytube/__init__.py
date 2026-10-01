@@ -5,7 +5,7 @@ Primary method: HTML scraping (proven, no dependencies)
 Optional: innertube API with PoToken support
 """
 
-__version__ = "2.1.2"
+__version__ = "2.1.3"
 __author__ = "ABHISHEK THAKUR"
 __email__ = "abhiyanshicreation@gmail.com"
 

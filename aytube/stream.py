@@ -115,8 +115,12 @@ class StreamResult:
     mime_type: str = ""
     raw: dict = field(default_factory=dict)
 
+    def __str__(self):
+        return self.url
+
     def __repr__(self):
         parts = [
+            f"url='{self.url[:50]}...'" if len(self.url) > 50 else f"url='{self.url}'",
             f"quality={self.quality}",
             f"container={self.container}",
             f"video={self.video_codec or 'none'}",
