@@ -108,6 +108,8 @@ def search(
     videos = []
 
     def extract_videos(obj, depth=0):
+        if len(videos) >= max_results:
+            return
         if isinstance(obj, dict):
             if "videoRenderer" in obj:
                 vr = obj["videoRenderer"]
@@ -147,11 +149,15 @@ def search(
                         return
 
             for v in obj.values():
+                if len(videos) >= max_results:
+                    return
                 extract_videos(v, depth + 1)
         elif isinstance(obj, list):
             for item in obj:
+                if len(videos) >= max_results:
+                    return
                 extract_videos(item, depth + 1)
 
     extract_videos(data)
 
-    return videos
+    return videos[:max_results]

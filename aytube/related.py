@@ -67,7 +67,9 @@ def get_related_videos(
     Returns list of dicts with: video_id, title, url, channel, thumbnail, duration, view_count.
     """
     from .fetcher import fetch_page
+    from .url import extract_video_id
 
+    video_id = extract_video_id(video_id) or video_id
     html = fetch_page(video_id, cookies_file=cookies_file, proxy=proxy, timeout=timeout)
 
     # Extract all JSON blobs from the page

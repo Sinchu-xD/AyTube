@@ -57,7 +57,7 @@ def _try_base64_sig(s: str) -> str | None:
             if all(c.isprintable() or c.isspace() for c in text):
                 return text
         except UnicodeDecodeError:
-            return raw.hex()
+            return None
     return None
 
 
@@ -440,7 +440,7 @@ async function fetchOnesieHotConfig() {
             "try { eval(" + JSON.stringify(jsCode) + "); } catch(e) {}\\n" +
             "console.error('[eval] Done. Keys:', capturedKeys.length);\\n" +
             "console.log('===KEYS==='); capturedKeys.forEach(k => console.log(k));\\n" +
-            "console.log('===END===');
+            "console.log('===END===');\\n\";
     }
 })().catch(e => { console.error('[worker] Fatal:', e.message); process.exit(1); });
 """
@@ -530,7 +530,7 @@ def _extract_n_function(js: str):
 # Public API
 # ---------------------------------------------------------------------------
 
-def extract_key(js: str, html: str | None = None) -> bytes | None:
+def extract_key(js: str = "", html: str | None = None) -> bytes | None:
     """
     Try to extract the AES cipher key from player JS and/or page HTML.
 

@@ -290,8 +290,14 @@ def _pick_best(formats: list[dict], ftype: str, quality: str,
         if target_rank >= 800:  # high/best
             return _pick_with_bonus(sorted_by_bitrate[:1], itag_content_length)
         elif target_rank >= 200:  # medium
-            # Pick the middle quality format (not highest)
-            mid = count // 2
+            # Prefer formats explicitly mapped to medium quality (e.g., 128kbps AAC/Opus)
+            medium_matches = [
+                (f, q) for f, q in sorted_by_bitrate
+                if _ITAG_TYPE_MAP.get(f.get("itag", 0), ("", "", ""))[2] == "medium"
+            ]
+            if medium_matches:
+                return _pick_with_bonus(medium_matches, itag_content_length)
+            mid = max(0, (count - 1) // 2)
             candidates = sorted_by_bitrate[mid:mid + 1]
             return _pick_with_bonus(candidates, itag_content_length)
         else:  # low/worst
@@ -406,7 +412,7 @@ def _fmt_to_result(fmt: dict, ftype: str) -> StreamResult:
         audio_codec=acodec,
         itag=itag,
         mime_type=fmt.get("mimeType", ""),
-        size=fmt.get("contentLength", 0),
+        size=int(fmt.get("contentLength", 0) or 0),
         raw=fmt,
     )
 

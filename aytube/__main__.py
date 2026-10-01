@@ -128,7 +128,8 @@ def _get(url, args):
     r = get_stream_url(url, cookies_file=args.cookies, proxy=args.proxy,
                        quality=_q(args), audio_only=args.audio)
     if args.json:
-        print(json.dumps(r._asdict(), indent=2, ensure_ascii=False, default=str))
+        import dataclasses
+        print(json.dumps(dataclasses.asdict(r), indent=2, ensure_ascii=False, default=str))
     else:
         print(r.url)
 
@@ -172,7 +173,10 @@ def _download(url, args):
 def _resume(url, args):
     from aytube import download_with_resume, get_stream_url
     r = get_stream_url(url, cookies_file=args.cookies, proxy=args.proxy)
-    path = download_with_resume(r.url, output=args.output, cookies_file=args.cookies,
+    output = args.output
+    if not output:
+        output = f"{r.title or r.video_id}.{r.container or 'mp4'}"
+    path = download_with_resume(r.url, output=output, cookies_file=args.cookies,
                                 proxy=args.proxy, title=r.title)
     if not args.quiet:
         print(f"✓ {path}")
@@ -226,8 +230,9 @@ def _search(query, args):
 
 
 def _thumb(video_id, args):
-    from aytube import download_thumbnail
-    path = download_thumbnail(video_id, output=args.output, cookies_file=args.cookies,
+    from aytube import download_thumbnail, extract_video_id
+    vid = extract_video_id(video_id) or video_id
+    path = download_thumbnail(vid, output=args.output, cookies_file=args.cookies,
                               proxy=args.proxy)
     if not args.quiet:
         print(f"✓ {path}")
@@ -247,8 +252,9 @@ def _chapters(url, args):
 
 
 def _related(url, args):
-    from aytube import get_related_videos
-    videos = get_related_videos(url, cookies_file=args.cookies, proxy=args.proxy,
+    from aytube import get_related_videos, extract_video_id
+    vid = extract_video_id(url) or url
+    videos = get_related_videos(vid, cookies_file=args.cookies, proxy=args.proxy,
                                 max_results=args.max_results)
     if not videos:
         print("No related videos.")

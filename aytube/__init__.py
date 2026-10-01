@@ -5,7 +5,7 @@ Primary method: HTML scraping (proven, no dependencies)
 Optional: innertube API with PoToken support
 """
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 __author__ = "ABHISHEK THAKUR"
 __email__ = "abhiyanshicreation@gmail.com"
 
@@ -313,7 +313,7 @@ def get_stream_url(
     audio_only: bool = False,
     verify: bool = True,
     timeout: int = 30,
-    method: str = "html",
+    method: str = "auto",
 ) -> StreamResult:
     """
     Extract a playable stream URL from a YouTube video.
@@ -351,8 +351,10 @@ def get_stream_url(
     if not video_id:
         raise ValueError(f"Could not extract video ID from URL: {url}")
 
+    cookies = _find_cookies_path(cookies_file)
+
     # ── Check cache (skip YouTube request if we have fresh data) ──
-    cache_key = f"{video_id}:{cookies_file or ''}:{proxy or ''}:{method}"
+    cache_key = f"{video_id}:{cookies or ''}:{proxy or ''}:{method}"
     now = time.time()
     cached = _FORMAT_CACHE.get(cache_key)
     if cached:
@@ -381,9 +383,26 @@ def get_stream_url(
     n_func = None
     fetch_method = None
 
-    # Primary: HTML scraping
-    if use_html:
-        cookies = cookies_file
+    # Priority 1: Innertube API (pre-signed direct URLs)
+    if use_innertube:
+        try:
+            from .innertube import fetch_player_response
+            resp = fetch_player_response(
+                video_id,
+                cookies_file=cookies,
+                proxy=proxy,
+                timeout=timeout,
+            )
+            sd = resp.get("streamingData", {})
+            fmts = [f for f in sd.get("formats", []) + sd.get("adaptiveFormats", []) if f.get("url")]
+            if fmts:
+                player_response = resp
+                fetch_method = "innertube"
+        except Exception:
+            player_response = None
+
+    # Priority 2: HTML scraping fallback
+    if not player_response and use_html:
         last_exc = None
         for attempt in range(2):
             try:
@@ -392,7 +411,7 @@ def get_stream_url(
 
                 # Check for bot challenge
                 if _detect_bot_challenge(html):
-                    if attempt == 0 and not cookies_file:
+                    if attempt == 0 and not cookies:
                         cookies = _find_cookies_path(cookies_file)
                         if cookies:
                             time.sleep(2)
@@ -407,7 +426,7 @@ def get_stream_url(
                 break
             except Exception as exc:
                 last_exc = exc
-                if _is_rate_limited(exc) and attempt == 0 and not cookies_file:
+                if _is_rate_limited(exc) and attempt == 0 and not cookies:
                     cookies = _find_cookies_path(cookies_file)
                     if cookies:
                         time.sleep(2)
@@ -416,21 +435,6 @@ def get_stream_url(
 
         if not player_response:
             raise last_exc or RuntimeError("Failed to fetch page")
-
-    # Fallback: innertube API
-    if not player_response and use_innertube:
-        try:
-            from .innertube import fetch_player_response
-            resp = fetch_player_response(
-                video_id,
-                cookies_file=cookies_file,
-                proxy=proxy,
-                timeout=timeout,
-            )
-            player_response = resp
-            fetch_method = "innertube"
-        except Exception:
-            player_response = None
 
     if not player_response:
         raise RuntimeError("Could not fetch player response via any method")
@@ -514,37 +518,56 @@ def get_stream_url(
                     result.url = _apply_n_parameter(result.url, n_value, n_func)
                     break
 
-    # ── Verify stream ──
-    if verify and result.url:
-        if result.itag and result.itag in _itag_content_length:
-            result.size = _itag_content_length[result.itag]
-        if result.size == 0:
-            file_size = verify_stream(result.url, cookies_file=cookies_file,
-                                       proxy=proxy, timeout=timeout)
-            result.size = file_size
-
-    # If using HTML method and Innertube is available, always try Innertube
-    # as a fallback (HTML-built URLs often fail with 403 from CDN)
+    # ── Fallback to Innertube if HTML method did not provide direct working URLs ──
     if fetch_method == "html" and use_innertube:
         try:
             from .innertube import fetch_player_response
-            resp2 = fetch_player_response(video_id, cookies_file=cookies_file,
+            resp2 = fetch_player_response(video_id, cookies_file=cookies,
                                           proxy=proxy, timeout=timeout)
             sd2 = resp2.get("streamingData", {})
-            fmts2 = sd2.get("formats", []) + sd2.get("adaptiveFormats", [])
-            innertube_result = find_best_stream(fmts2, quality=quality,
-                                                 audio_only=audio_only, is_live=is_live)
-            if innertube_result.url:
-                result.url = innertube_result.url
-                result.itag = innertube_result.itag
-                result.quality = innertube_result.quality
-                result.video_codec = innertube_result.video_codec
-                result.audio_codec = innertube_result.audio_codec
-                result.container = innertube_result.container
-                result.size = innertube_result.size or result.size
-                fetch_method = "innertube"
+            fmts2 = [f for f in sd2.get("formats", []) + sd2.get("adaptiveFormats", []) if f.get("url")]
+            if fmts2:
+                innertube_result = find_best_stream(fmts2, quality=quality,
+                                                     audio_only=audio_only, is_live=is_live)
+                if innertube_result.url:
+                    result.url = innertube_result.url
+                    result.itag = innertube_result.itag
+                    result.quality = innertube_result.quality
+                    result.video_codec = innertube_result.video_codec
+                    result.audio_codec = innertube_result.audio_codec
+                    result.container = innertube_result.container
+                    result.size = innertube_result.size or result.size
+                    fetch_method = "innertube"
         except Exception:
             pass
+
+    # ── Verify stream ──
+    if verify and result.url:
+        file_size = verify_stream(result.url, cookies_file=cookies,
+                                  proxy=proxy, timeout=timeout)
+        if file_size > 0:
+            if result.size == 0 or (result.itag and result.itag not in _itag_content_length):
+                result.size = file_size
+        elif fetch_method != "innertube" and use_innertube:
+            try:
+                from .innertube import fetch_player_response
+                resp2 = fetch_player_response(video_id, cookies_file=cookies,
+                                              proxy=proxy, timeout=timeout)
+                sd2 = resp2.get("streamingData", {})
+                fmts2 = [f for f in sd2.get("formats", []) + sd2.get("adaptiveFormats", []) if f.get("url")]
+                if fmts2:
+                    innertube_result = find_best_stream(fmts2, quality=quality,
+                                                         audio_only=audio_only, is_live=is_live)
+                    if innertube_result.url:
+                        result.url = innertube_result.url
+                        result.itag = innertube_result.itag
+                        result.quality = innertube_result.quality
+                        result.video_codec = innertube_result.video_codec
+                        result.audio_codec = innertube_result.audio_codec
+                        result.container = innertube_result.container
+                        result.size = innertube_result.size or result.size
+            except Exception:
+                pass
 
     # ── Store in cache ──
     if any(f.get("url") for f in all_formats):
@@ -592,34 +615,42 @@ def list_formats(
     if not video_id:
         raise ValueError(f"Could not extract video ID from URL: {url}")
 
-    # Fetch page (with retry on rate-limit)
-    html = None
-    for attempt in range(3):
-        try:
-            html = fetch_page(video_id, cookies_file=cookies_file, proxy=proxy, timeout=timeout)
-            break
-        except Exception as exc:
-            if _is_rate_limited(exc) and attempt < 2:
-                time.sleep(3)
-                continue
-            raise
-    pr = get_player_response(html)
-    sd = pr.get("streamingData", {})
+    cookies = _find_cookies_path(cookies_file)
 
-    formats = sd.get("formats", []) + sd.get("adaptiveFormats", [])
-
-    # Resolve URLs using the proven _process_formats_html logic
-    all_formats = [dict(f) for f in formats]
-    n_func = None
+    all_formats = []
     try:
-        all_formats, n_func = _process_formats_html(
-            all_formats, html, cookies_file, proxy, timeout
-        )
+        from .innertube import fetch_player_response
+        resp = fetch_player_response(video_id, cookies_file=cookies, proxy=proxy, timeout=timeout)
+        sd = resp.get("streamingData", {})
+        innertube_formats = sd.get("formats", []) + sd.get("adaptiveFormats", [])
+        if any(f.get("url") for f in innertube_formats):
+            all_formats = [dict(f) for f in innertube_formats]
     except Exception:
+        pass
+
+    if not all_formats:
+        html = None
+        for attempt in range(3):
+            try:
+                html = fetch_page(video_id, cookies_file=cookies, proxy=proxy, timeout=timeout)
+                break
+            except Exception as exc:
+                if _is_rate_limited(exc) and attempt < 2:
+                    time.sleep(3)
+                    continue
+                raise
+        pr = get_player_response(html)
+        sd = pr.get("streamingData", {})
+        formats = sd.get("formats", []) + sd.get("adaptiveFormats", [])
         all_formats = [dict(f) for f in formats]
-        for fmt in all_formats:
-            if not fmt.get("url"):
-                fmt["url"] = _resolve_signature_format(fmt)
+        try:
+            all_formats, _ = _process_formats_html(
+                all_formats, html, cookies, proxy, timeout
+            )
+        except Exception:
+            for fmt in all_formats:
+                if not fmt.get("url"):
+                    fmt["url"] = _resolve_signature_format(fmt)
 
     # Build format list from resolved formats
     result = []
@@ -849,8 +880,10 @@ def download(
 
     # Determine output path
     if not output:
-        safe_title = _safe_filename(result.title or result.video_id)
-        ext = "m4a" if audio_only else result.container or "mp4"
+        if audio_only:
+            ext = "m4a" if result.container == "mp4" else (result.container or "webm")
+        else:
+            ext = result.container or "mp4"
         output = f"{safe_title}.{ext}"
 
     # Ensure output directory exists
@@ -917,17 +950,20 @@ def _download_file(url: str, output: str, cookies_file: str | None,
         if cookie_header:
             opener.addheaders.append(('Cookie', cookie_header))
 
+        existing_size = 0
         mode = 'ab' if (resume and os.path.exists(output) and os.path.getsize(output) > 0) else 'wb'
         headers_dict = {}
         if mode == 'ab':
-            downloaded = os.path.getsize(output)
-            headers_dict['Range'] = f'bytes={downloaded}-'
-            print(f"  Resuming from {downloaded / 1024 / 1024:.1f}MB")
+            existing_size = os.path.getsize(output)
+            headers_dict['Range'] = f'bytes={existing_size}-'
+            print(f"  Resuming from {existing_size / 1024 / 1024:.1f}MB")
 
         req = urllib.request.Request(url, headers=headers_dict)
         resp = opener.open(req, timeout=timeout * 4)
 
-        total_size = int(resp.headers.get('Content-Length', 0)) if mode == 'wb' else 0
+        content_len = int(resp.headers.get('Content-Length', 0))
+        total_size = (existing_size + content_len) if content_len > 0 else (size or 0)
+        downloaded = existing_size
 
         with open(output, mode) as f:
             while True:
@@ -935,15 +971,19 @@ def _download_file(url: str, output: str, cookies_file: str | None,
                 if not chunk:
                     break
                 f.write(chunk)
-                total_size += len(chunk)
+                downloaded += len(chunk)
                 if total_size > 0:
-                    pct = min((total_size / max(total_size, 1)) * 100, 100)
-                    mb = total_size / (1024 * 1024)
+                    pct = min((downloaded / total_size) * 100, 100.0)
+                    mb = downloaded / (1024 * 1024)
+                    tot_mb = total_size / (1024 * 1024)
                     bar_len = 30
-                    filled = int(bar_len * min(total_size / max(total_size, 1), 1))
+                    filled = int(bar_len * min(downloaded / total_size, 1.0))
                     bar = "█" * filled + "░" * (bar_len - filled)
-                    sys.stdout.write(f"\r  {bar} {pct:5.1f}% {mb:.1f} MB")
-                    sys.stdout.flush()
+                    sys.stdout.write(f"\r  {bar} {pct:5.1f}% {mb:.1f}/{tot_mb:.1f} MB")
+                else:
+                    mb = downloaded / (1024 * 1024)
+                    sys.stdout.write(f"\r  {mb:.1f} MB")
+                sys.stdout.flush()
 
         print()
         if os.path.exists(output) and os.path.getsize(output) > 0:
@@ -1151,6 +1191,16 @@ def list_playlist(
     """
     from .fetcher import fetch_page
 
+    playlist_id = ""
+    if url.startswith(("http://", "https://")):
+        import urllib.parse
+        parsed = urllib.parse.urlparse(url)
+        params = urllib.parse.parse_qs(parsed.query)
+        playlist_id = params.get("list", [""])[0]
+    else:
+        playlist_id = url
+        url = f"https://www.youtube.com/playlist?list={playlist_id}"
+
     html = fetch_page(url, cookies_file=cookies_file, proxy=proxy, timeout=timeout)
 
     import re, json
@@ -1273,18 +1323,13 @@ def list_playlist(
                     "thumbnail": f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg",
                 })
 
-    # Innertube API fallback disabled (requires authentication token)
-    # if not videos:
-    #     m = re.search(r'[?&]list=([^&]+)', url)
-    #     if m:
-    #         try:
-    #             from .innertube_extra import fetch_playlist
-    #             pl_id = m.group(1)
-    #             videos = fetch_playlist(pl_id, cookies_file=cookies_file, proxy=proxy,
-    #                                     timeout=timeout, max_results=100)
-    #             print(f"  Innertube playlist: found {len(videos)} videos")
-    #         except Exception as e:
-    #             print(f"  [DEBUG] Innertube playlist error: {e}")
+    if not videos and playlist_id:
+        try:
+            from .innertube_extra import fetch_playlist
+            videos = fetch_playlist(playlist_id, cookies_file=cookies_file, proxy=proxy,
+                                    timeout=timeout, max_results=100)
+        except Exception:
+            pass
 
     return videos
 

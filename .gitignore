@@ -15,11 +15,18 @@ venv/
 env/
 
 # Project-specific
+*cookie*
+*.cookie
+*.cookies
 cookies_file
 *.mp4
 *.webm
 *.m4a
 *.mp3
+*.jpg
+*.jpeg
+*.png
+*.log
 debug_*.py
 
 # IDE

@@ -4,7 +4,15 @@ include pyproject.toml
 include examples/*.py
 
 # Exclude
+exclude *cookie*
+exclude *.cookie
+exclude *.cookies
 exclude cookies_file
+exclude *.mp4
+exclude *.webm
+exclude *.m4a
+exclude *.jpg
+exclude *.log
 exclude debug_*.py
 exclude test_aytube.sh
 exclude test_full.py

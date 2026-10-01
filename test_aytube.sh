@@ -9,7 +9,7 @@ COOKIES=""
 TEST_URL="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 TEST_ID="dQw4w9WgXcQ"
 SEARCH_QR="lofi hip hop"
-DELAY=3
+DELAY="${DELAY:-1}"
 
 # Parse args
 while [ $# -gt 0 ]; do
@@ -74,7 +74,7 @@ test "9. chapters" \
 
 # 10. Download
 test "10. download" \
-    "python3 -m aytube download '$TEST_URL' -q best -o /tmp/aytube_test_dl.mp4 $ARGS" || true
+    "python3 -m aytube download '$TEST_URL' -q 360p -o /tmp/aytube_test_dl.mp4 $ARGS" || true
 
 # 11. Download audio only
 test "11. download (audio)" \

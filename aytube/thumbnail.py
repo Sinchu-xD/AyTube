@@ -33,6 +33,8 @@ def get_thumbnails(
     list[dict]
         List of thumbnail dicts with: url, width, height, type.
     """
+    from .url import extract_video_id
+    video_id = extract_video_id(video_id) or video_id
     # YouTube provides these standard thumbnail sizes
     base_url = f"https://i.ytimg.com/vi/{video_id}"
     thumbnails = [

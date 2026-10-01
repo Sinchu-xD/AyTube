@@ -37,7 +37,9 @@ def get_channel_info(
         video_count, thumbnail, is_verified, is_verified_artist.
     """
     # Build channel URL
-    if channel_id.startswith("UC"):
+    if channel_id.startswith(("http://", "https://")):
+        url = channel_id
+    elif channel_id.startswith("UC"):
         url = f"https://www.youtube.com/channel/{channel_id}"
     elif channel_id.startswith("@"):
         url = f"https://www.youtube.com/{channel_id}"
@@ -107,10 +109,18 @@ def get_channel_info(
 
     info = find_channel_info(data) or {}
 
-    # Try to get subscriber count from meta tags
+    # Fallback to meta tags if fields are missing
     og_title = re.search(r'<meta[^>]+property="og:title"[^>]+content="([^"]+)"', page_html)
     if og_title and not info.get("name"):
         info["name"] = html_module.unescape(og_title.group(1))
+
+    og_image = re.search(r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"', page_html)
+    if og_image and not info.get("thumbnail"):
+        info["thumbnail"] = html_module.unescape(og_image.group(1))
+
+    og_desc = re.search(r'<meta[^>]+property="og:description"[^>]+content="([^"]+)"', page_html)
+    if og_desc and not info.get("description"):
+        info["description"] = html_module.unescape(og_desc.group(1))
 
     return info
 
