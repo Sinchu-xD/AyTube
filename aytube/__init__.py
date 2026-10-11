@@ -10,6 +10,7 @@ __author__ = "ABHISHEK THAKUR"
 __email__ = "abhiyanshicreation@gmail.com"
 
 import json
+import os
 import re
 import sys
 import time
@@ -345,8 +346,6 @@ def get_stream_url(
         Object with .url, .quality, .container, .video_codec, .audio_codec,
         .size, .title, .video_id.
     """
-    import os
-
     video_id = extract_video_id(url)
     if not video_id:
         raise ValueError(f"Could not extract video ID from URL: {url}")
@@ -607,7 +606,6 @@ def list_formats(
         Each dict has: itag, quality, container, video_codec, audio_codec,
         size, bitrate, fps, mime_type, is_hdr, is_video_only.
     """
-    import os
     from .fetcher import fetch_page
     from .player import get_player_response
 
@@ -747,7 +745,6 @@ def get_metadata(
         title, description, thumbnail, duration, view_count, like_count,
         channel_name, channel_id, upload_date, is_live, is_private, etc.
     """
-    import os
     from .fetcher import fetch_page
     from .player import get_player_response
 
