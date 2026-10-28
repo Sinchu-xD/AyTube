@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AyTube Cookie Exporter</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      width: 320px;
+      padding: 16px;
+      background: #0f0f13;
+      color: #f1f1f5;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .logo {
+      width: 28px;
+      height: 28px;
+      background: #ff0033;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .subtitle {
+      font-size: 11px;
+      color: #8b8b9e;
+    }
+    .card {
+      background: #181822;
+      border: 1px solid #282838;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: #1f2c20;
+      color: #4ade80;
+    }
+    .status-badge.error {
+      background: #36171a;
+      color: #f87171;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .count {
+      font-size: 11px;
+      color: #a0a0b2;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    button {
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .btn-primary {
+      background: #ff0033;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #e6002e;
+    }
+    .btn-secondary {
+      background: #232332;
+      color: #d1d1e0;
+      border: 1px solid #333347;
+    }
+    .btn-secondary:hover {
+      background: #2b2b3d;
+    }
+    .footer {
+      margin-top: 12px;
+      font-size: 10.5px;
+      color: #6d6d80;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .toast {
+      display: none;
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 6px;
+      background: #162a1c;
+      color: #86efac;
+      font-size: 11px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">▶</div>
+    <div>
+      <div class="title">AyTube Exporter</div>
+      <div class="subtitle">Netscape cookies for AyTube & yt-dlp</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="status-row">
+      <span style="font-size:12px; color:#c0c0d0;">YouTube Session</span>
+      <span id="status-badge" class="status-badge">
+        <span class="dot"></span>
+        <span id="status-text">Scanning...</span>
+      </span>
+    </div>
+    <div class="count" id="cookie-count">Detected: 0 cookies</div>
+  </div>
+
+  <div class="actions">
+    <button id="btn-download" class="btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      Download cookies.txt
+    </button>
+    <button id="btn-copy" class="btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      Copy to Clipboard
+    </button>
+  </div>
+
+  <div id="toast" class="toast">✓ Saved to clipboard!</div>
+
+  <div class="footer">
+    100% offline & local. Place <code>cookies.txt</code> in your AyTube project folder to bypass bot checks.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -29,6 +29,7 @@ cookies
 *.jpg
 *.jpeg
 *.png
+!extension/icons/*.png
 *.log
 debug_*.py
 

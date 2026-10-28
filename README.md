@@ -123,6 +123,8 @@ result = get_stream_url(
 )
 ```
 
+> **Tip (1-Click Cookie Exporter):** Use our built-in lightweight browser extension in [`extension/`](extension/) to export YouTube cookies directly to `cookies.txt` in one click.
+
 ### 7. Metadata, Subtitles, Chapters & Search
 
 ```python

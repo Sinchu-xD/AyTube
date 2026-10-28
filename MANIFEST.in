@@ -5,6 +5,7 @@ include setup.py
 include CHANGELOG.md
 recursive-include examples *.py
 recursive-include tests *.py *.sh
+recursive-include extension *
 
 # Exclude user credentials, temporary files, and media artifacts
 exclude *cookie*.txt
