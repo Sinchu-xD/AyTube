@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Live stream extraction and resolution selection test suite."""
+
+import os
+import sys
+import time
+from urllib.parse import urlparse, parse_qs
+
+# Auto-detect cookies file if present
+COOKIES_FILE = os.environ.get("COOKIES_FILE", None)
+if not COOKIES_FILE:
+    for candidate in ("cookies_file", "cookies.txt", "cookie.txt"):
+        if os.path.isfile(candidate):
+            COOKIES_FILE = candidate
+            break
+
+PROXY = os.environ.get("PROXY", None)
+VIDEO_URL = os.environ.get("VIDEO_URL", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+
+def validate_googlevideo_url(url: str) -> bool:
+    """Validate that the URL belongs to Google Video CDN and has valid signatures."""
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+
+    if "googlevideo.com" not in parsed.netloc:
+        print(f"  FAIL: wrong domain {parsed.netloc}")
+        return False
+
+    has_sig = any(k in params for k in ("s", "signature", "sig"))
+    if not has_sig:
+        sig_like = any(
+            len(v[0]) == 40 and all(c in "0123456789abcdef" for c in v[0])
+            for v in params.values()
+        )
+        if not sig_like:
+            print("  FAIL: no signature parameter found")
+            return False
+
+    if "expire" not in params:
+        print("  FAIL: no expire parameter found")
+        return False
+
+    print(f"  PASS: {parsed.netloc[:35]} sig=yes expire=yes")
+    return True
+
+
+def main():
+    from aytube import get_stream_url
+
+    print("=" * 60)
+    print("  AyTube Live Stream Test Suite")
+    print("=" * 60)
+    all_ok = True
+
+    tests = [
+        ("Video 1080p", {"quality": "1080p"}, 137, "1080p"),
+        ("Video 720p", {"quality": "720p"}, 136, "720p"),
+        ("Video 480p", {"quality": "480p"}, 135, "480p"),
+        ("Video best", {"quality": "best"}, None, None),
+        ("Audio high", {"audio_only": True, "quality": "high"}, 251, "high"),
+        ("Audio medium", {"audio_only": True, "quality": "medium"}, (140, 250), None),
+        ("Audio low", {"audio_only": True, "quality": "low"}, (139, 249), "low"),
+    ]
+
+    for i, (label, kwargs, expected_itag, expected_quality) in enumerate(tests):
+        print(f"\n--- {label} ---")
+        try:
+            r = get_stream_url(
+                VIDEO_URL,
+                cookies_file=COOKIES_FILE,
+                proxy=PROXY,
+                **kwargs,
+            )
+            print(f"  {r.quality} | itag={r.itag} | {r.size:,} bytes | {r.container} | {r.video_codec or r.audio_codec}")
+
+            checks = [
+                expected_quality is None or r.quality == expected_quality,
+                expected_itag is None or r.itag == expected_itag or (isinstance(expected_itag, (list, tuple)) and r.itag in expected_itag),
+                bool(r.url),
+                validate_googlevideo_url(r.url),
+            ]
+
+            if all(checks):
+                print("  PASS")
+            else:
+                print("  FAIL")
+                all_ok = False
+
+        except Exception as e:
+            print(f"  FAIL: {e}")
+            all_ok = False
+
+        if i < len(tests) - 1:
+            time.sleep(1)
+
+    print("\n" + "=" * 60)
+    if all_ok:
+        print("  ALL TESTS PASSED!")
+    else:
+        print("  SOME TESTS FAILED")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
