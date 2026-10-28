@@ -14,11 +14,14 @@ build/
 venv/
 env/
 
-# Project-specific
-*cookie*
+# Cookie data files (do not commit user credentials)
+*cookie*.txt
+*cookies*.txt
 *.cookie
 *.cookies
 cookies_file
+cookies
+!examples/*.py
 *.mp4
 *.webm
 *.m4a
