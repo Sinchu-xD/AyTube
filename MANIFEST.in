@@ -1,24 +1,27 @@
 include README.md
 include LICENSE
 include pyproject.toml
-include examples/*.py
+include setup.py
+include CHANGELOG.md
+recursive-include examples *.py
+recursive-include tests *.py *.sh
 
-# Exclude
-exclude *cookie*
+# Exclude user credentials, temporary files, and media artifacts
+exclude *cookie*.txt
+exclude *cookies*.txt
 exclude *.cookie
 exclude *.cookies
 exclude cookies_file
+exclude cookies
 exclude *.mp4
 exclude *.webm
 exclude *.m4a
+exclude *.mp3
 exclude *.jpg
+exclude *.jpeg
+exclude *.png
 exclude *.log
-exclude debug_*.py
-exclude test_aytube.sh
-exclude test_full.py
-exclude test_unit.py
-exclude aytube/_debug*.py
-exclude aytube/__pycache__/*
-exclude aytube/potoken.py
 recursive-exclude aytube/__pycache__ *
-recursive-exclude tests *
+recursive-exclude tests/__pycache__ *
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
