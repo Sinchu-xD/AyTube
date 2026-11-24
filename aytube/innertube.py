@@ -208,6 +208,7 @@ def fetch_related(
 ) -> list[dict]:
     """
     Fetch related/recommended videos for a given video ID via Innertube next API.
+    Supports modern lockupViewModel and classic compactVideoRenderer payloads.
     """
     opener = build_opener(cookies_file, proxy)
     headers = _build_api_headers(cookies_file)
@@ -228,37 +229,123 @@ def fetch_related(
         return []
 
     videos: list[dict] = []
-    seen: set[str] = set()
+    seen: set[str] = {video_id}
 
-    def walk(obj: Any):
+    secondary = data.get("contents", {}).get("twoColumnWatchNextResults", {}).get("secondaryResults", {}).get("secondaryResults", {}).get("results", [])
+    for item in secondary:
         if len(videos) >= max_results:
-            return
-        if isinstance(obj, dict):
-            vid = obj.get("videoId")
-            if isinstance(vid, str) and len(vid) == 11 and vid not in seen and vid != video_id:
+            break
+
+        # 1. Modern YouTube lockupViewModel
+        lockup = item.get("lockupViewModel")
+        if lockup:
+            cmd = lockup.get("rendererContext", {}).get("commandContext", {}).get("onTap", {}).get("innertubeCommand", {})
+            vid = cmd.get("watchEndpoint", {}).get("videoId")
+            if not vid:
+                overlays = lockup.get("contentImage", {}).get("thumbnailViewModel", {}).get("overlays", [])
+                for ov in overlays:
+                    badges = ov.get("thumbnailBottomOverlayViewModel", {}).get("badges", [])
+                    for b in badges:
+                        vid = b.get("thumbnailBadgeViewModel", {}).get("animationActivationTargetId")
+                        if vid:
+                            break
+                    if vid:
+                        break
+            if not vid or vid in seen or len(vid) != 11:
+                continue
+            seen.add(vid)
+
+            title = lockup.get("metadata", {}).get("lockupMetadataViewModel", {}).get("title", {}).get("content", "")
+            rows = lockup.get("metadata", {}).get("lockupMetadataViewModel", {}).get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows", [])
+            channel = ""
+            views = ""
+            if len(rows) > 0:
+                parts0 = rows[0].get("metadataParts", [])
+                if parts0:
+                    channel = parts0[0].get("text", {}).get("content", "")
+            if len(rows) > 1:
+                parts1 = rows[1].get("metadataParts", [])
+                if parts1:
+                    views = parts1[0].get("text", {}).get("content", "")
+
+            sources = lockup.get("contentImage", {}).get("thumbnailViewModel", {}).get("image", {}).get("sources", [])
+            thumb = sources[-1].get("url", "") if sources else f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+
+            duration = ""
+            overlays = lockup.get("contentImage", {}).get("thumbnailViewModel", {}).get("overlays", [])
+            for ov in overlays:
+                badges = ov.get("thumbnailBottomOverlayViewModel", {}).get("badges", [])
+                for b in badges:
+                    t = b.get("thumbnailBadgeViewModel", {}).get("text")
+                    if t and ":" in t:
+                        duration = t
+                        break
+
+            videos.append({
+                "video_id": vid,
+                "title": title or f"Video {vid}",
+                "url": f"https://www.youtube.com/watch?v={vid}",
+                "channel": channel,
+                "thumbnail": thumb,
+                "duration": duration,
+                "view_count": views,
+            })
+            continue
+
+        # 2. Classic compactVideoRenderer
+        cvr = item.get("compactVideoRenderer")
+        if cvr:
+            vid = cvr.get("videoId")
+            if vid and vid not in seen and len(vid) == 11:
                 seen.add(vid)
-                title = _find_text(obj)
-                thumb = _find_thumb(obj)
-                channel = _find_channel(obj)
-                length = obj.get("lengthText", {}).get("simpleText", "") or obj.get("lengthSeconds", "")
-                views = obj.get("viewCountText", {}).get("simpleText", "") or obj.get("shortViewCountText", {}).get("simpleText", "")
+                title = cvr.get("title", {}).get("simpleText") or (cvr.get("title", {}).get("runs", [{}])[0].get("text", ""))
+                channel = cvr.get("shortBylineText", {}).get("runs", [{}])[0].get("text", "")
+                thumbs = cvr.get("thumbnail", {}).get("thumbnails", [])
+                thumb = thumbs[-1].get("url") if thumbs else f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+                duration = cvr.get("lengthText", {}).get("simpleText", "")
+                views = cvr.get("viewCountText", {}).get("simpleText", "")
                 videos.append({
                     "video_id": vid,
                     "title": title or f"Video {vid}",
                     "url": f"https://www.youtube.com/watch?v={vid}",
                     "channel": channel,
                     "thumbnail": thumb,
-                    "duration": length,
+                    "duration": duration,
                     "view_count": views,
                 })
-                return
-            for v in obj.values():
-                walk(v)
-        elif isinstance(obj, list):
-            for item in obj:
-                walk(item)
 
-    walk(data)
+    # Fallback to recursive walker if no items matched
+    if not videos:
+        def walk(obj: Any):
+            if len(videos) >= max_results:
+                return
+            if isinstance(obj, dict):
+                vid = obj.get("videoId")
+                if isinstance(vid, str) and len(vid) == 11 and vid not in seen:
+                    seen.add(vid)
+                    title = _find_text(obj)
+                    thumb = _find_thumb(obj)
+                    channel = _find_channel(obj)
+                    length = obj.get("lengthText", {}).get("simpleText", "") or obj.get("lengthSeconds", "")
+                    views = obj.get("viewCountText", {}).get("simpleText", "") or obj.get("shortViewCountText", {}).get("simpleText", "")
+                    videos.append({
+                        "video_id": vid,
+                        "title": title or f"Video {vid}",
+                        "url": f"https://www.youtube.com/watch?v={vid}",
+                        "channel": channel,
+                        "thumbnail": thumb,
+                        "duration": length,
+                        "view_count": views,
+                    })
+                    return
+                for v in obj.values():
+                    walk(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    walk(item)
+
+        walk(data)
+
     return videos[:max_results]
 
 
